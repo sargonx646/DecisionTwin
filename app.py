@@ -41,6 +41,8 @@ if "suggestion" not in st.session_state:
     st.session_state.suggestion = ""
 if "analysis" not in st.session_state:
     st.session_state.analysis = {}
+if "replace_index" not in st.session_state:
+    st.session_state.replace_index = {}  # Track replace state per persona
 
 # Sidebar with logo and navigation
 st.sidebar.image("https://github.com/sargonx646/DF_22AprilLate/raw/main/assets/decisionforge_logo.png.png", use_column_width=True)
@@ -121,8 +123,8 @@ def display_persona_cards(personas: List[Dict]):
     cols = st.columns(3)
     for i, persona in enumerate(personas):
         with cols[i % 3]:
-            with st.form(key=f"edit_persona_card_{i}"):
-                st.markdown(f"**{persona['name']} ({persona.get('role', 'Unknown Role')})**")
+            st.markdown(f"**{persona['name']} ({persona.get('role', 'Unknown Role')})**", unsafe_allow_html=True)
+            with st.form(key=f"edit_persona_card_{i}", clear_on_submit=True):
                 name = st.text_input("Name", value=persona["name"], key=f"card_name_{i}")
                 role = st.text_input("Role/Title", value=persona.get("role", "Unknown Role"), key=f"card_role_{i}")
                 bio = st.text_area("Bio", value=persona["bio"], height=100, key=f"card_bio_{i}")
@@ -131,31 +133,38 @@ def display_persona_cards(personas: List[Dict]):
                 biases = st.text_area("Biases", value=", ".join(persona["biases"]), key=f"card_biases_{i}")
                 historical_behavior = st.text_area("Historical Behavior", value=persona.get("historical_behavior", persona["expected_behavior"]), key=f"card_behavior_{i}")
                 tone = st.text_input("Tone", value=persona["tone"], key=f"card_tone_{i}")
-                if st.form_submit_button("Update Persona"):
-                    updated_persona = {
-                        "name": name,
-                        "role": role,
-                        "bio": bio,
-                        "psychological_traits": psychological_traits.split(", "),
-                        "influences": influences.split(", "),
-                        "biases": biases.split(", "),
-                        "historical_behavior": historical_behavior,
-                        "tone": tone,
-                        "goals": persona["goals"],  # Preserve from original
-                        "expected_behavior": persona["expected_behavior"]
-                    }
-                    personas[i] = updated_persona
-                    save_persona(updated_persona)
-                    save_persona_to_json(updated_persona, f"{name.replace(' ', '_').lower()}.json")
-                    st.success(f"Persona {name} updated and saved!")
-                    st.rerun()
-                if st.button("Save to Library", key=f"save_persona_{i}"):
-                    save_persona(persona)
-                    save_persona_to_json(persona, f"{persona['name'].replace(' ', '_').lower()}.json")
-                    st.success(f"Persona {persona['name']} saved to library.")
+                col1, col2 = st.columns(2)
+                with col1:
+                    if st.form_submit_button("Update Persona"):
+                        updated_persona = {
+                            "name": name,
+                            "role": role,
+                            "bio": bio,
+                            "psychological_traits": psychological_traits.split(", "),
+                            "influences": influences.split(", "),
+                            "biases": biases.split(", "),
+                            "historical_behavior": historical_behavior,
+                            "tone": tone,
+                            "goals": persona["goals"],
+                            "expected_behavior": persona["expected_behavior"]
+                        }
+                        personas[i] = updated_persona
+                        save_persona(updated_persona)
+                        save_persona_to_json(updated_persona, f"{name.replace(' ', '_').lower()}.json")
+                        st.success(f"Persona {name} updated and saved!")
+                        st.rerun()
+                with col2:
+                    if st.form_submit_button("Save to Library"):
+                        save_persona(persona)
+                        save_persona_to_json(persona, f"{persona['name'].replace(' ', '_').lower()}.json")
+                        st.success(f"Persona {persona['name']} saved to library!")
+                        st.rerun()
+            # Replace persona logic outside form
+            try:
                 if st.button("Replace with Library Persona", key=f"replace_persona_{i}"):
-                    st.session_state[f"replace_index_{i}"] = True
-                if st.session_state.get(f"replace_index_{i}", False):
+                    st.session_state.replace_index[i] = True
+                    st.rerun()
+                if st.session_state.replace_index.get(i, False):
                     saved_personas = get_all_personas()
                     hardcoded_personas = [
                         load_persona_from_json("jfk.json"),
@@ -170,10 +179,12 @@ def display_persona_cards(personas: List[Dict]):
                                     personas[i] = p
                                     save_persona(p)
                                     save_persona_to_json(p, f"{p['name'].replace(' ', '_').lower()}.json")
-                                    st.session_state[f"replace_index_{i}"] = False
+                                    st.session_state.replace_index[i] = False
                                     st.rerun()
                     else:
                         st.warning("No personas in library.")
+            except Exception as e:
+                st.error(f"Error in replace persona: {str(e)}")
 
 def display_process_visualization(process: List[str]):
     """Display the decision-making process as ASCII timeline, graph, and Mermaid flowchart."""
@@ -264,6 +275,8 @@ def main():
                 try:
                     with st.spinner("Generating personas..."):
                         st.session_state.personas = generate_personas(st.session_state.extracted)
+                        # Reset replace_index to avoid stale state
+                        st.session_state.replace_index = {}
                         for persona in st.session_state.personas:
                             save_persona(persona)
                             save_persona_to_json(persona, f"{persona['name'].replace(' ', '_').lower()}.json")
@@ -321,7 +334,6 @@ def main():
     elif st.session_state.step == 3:
         st.header("Step 3: Run Simulation")
         st.info("Simulate the debate among stakeholders using Grok-3-Beta.")
-        # Debug inputs
         st.write("Debug: Dilemma:", st.session_state.dilemma[:100] + "..." if len(st.session_state.dilemma) > 100 else st.session_state.dilemma)
         st.write("Debug: Personas:", [p["name"] for p in st.session_state.personas])
         st.write("Debug: Extracted Process:", st.session_state.extracted.get("process", []))
@@ -337,7 +349,6 @@ def main():
         if st.button("Start Simulation", key="start_simulation"):
             try:
                 with st.spinner(f"Running Grok-3-Beta simulation (timeout: {simulation_time_minutes} minutes)..."):
-                    # Ensure dilemma is a string
                     dilemma = str(st.session_state.dilemma) if st.session_state.dilemma else "Unknown dilemma"
                     st.session_state.transcript = simulate_debate(
                         personas=st.session_state.personas,
