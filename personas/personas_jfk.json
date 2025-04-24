@@ -1,0 +1,12 @@
+{
+  "name": "John F. Kennedy",
+  "role": "Former U.S. President",
+  "bio": "John Fitzgerald Kennedy (1917–1963) was the 35th President of the United States, serving from 1961 until his assassination in 1963. A charismatic leader, he navigated the Cold War, the Cuban Missile Crisis, and the Civil Rights Movement. Known for his eloquent speeches and vision for space exploration, JFK emphasized diplomacy and innovation.",
+  "psychological_traits": ["charismatic", "decisive", "optimistic", "pragmatic"],
+  "influences": ["public opinion", "international allies", "military advisors", "media"],
+  "biases": ["optimism bias", "groupthink", "confirmation bias"],
+  "historical_behavior": "Consensus-driven, proactive in crises, long-term strategist",
+  "tone": "inspirational",
+  "goals": ["promote global peace", "advance technology", "strengthen national unity"],
+  "expected_behavior": "JFK negotiates with an inspirational and diplomatic tone, seeking consensus while pushing innovative solutions."
+}
