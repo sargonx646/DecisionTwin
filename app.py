@@ -26,7 +26,7 @@ if not os.getenv("XAI_API_KEY"):
     st.error("XAI_API_KEY environment variable is not set. Please configure it in .env.")
     st.stop()
 
-# Embedded hardcoded personas to avoid file dependency issues
+# Embedded hardcoded personas
 HARDCODED_PERSONAS = [
     {
         "name": "John F. Kennedy",
@@ -181,7 +181,6 @@ def load_persona_from_json(filename: str) -> Dict:
         with open(f"personas/{filename}", "r") as f:
             return json.load(f)
     except FileNotFoundError:
-        # Fallback to embedded personas
         for persona in HARDCODED_PERSONAS:
             if persona["name"].replace(" ", "_").lower() + ".json" == filename:
                 return persona
@@ -232,7 +231,6 @@ def display_persona_cards(personas: List[Dict]):
                         save_persona_to_json(persona, f"{persona['name'].replace(' ', '_').lower()}.json")
                         st.success(f"Persona {persona['name']} saved to library!")
                         st.rerun()
-            # Replace persona logic outside form
             try:
                 if st.button("Replace with Library Persona", key=f"replace_persona_{i}"):
                     st.session_state.replace_index[i] = True
@@ -259,13 +257,11 @@ def display_persona_cards(personas: List[Dict]):
 def display_process_visualization(process: List[str]):
     """Display the decision-making process as ASCII timeline, graph, and a networkx graph."""
     st.markdown("### Decision-Making Process")
-    # ASCII Timeline
     ascii_timeline = "=== Process Timeline ===\n"
     for i, step in enumerate(process, 1):
         ascii_timeline += f"{i}. {step}\n"
     ascii_timeline += "======================="
     st.code(ascii_timeline)
-    # ASCII Graph
     ascii_graph = "=== Process Dependency Graph ===\n"
     for i, step in enumerate(process, 1):
         ascii_graph += f"[{step}]"
@@ -275,7 +271,6 @@ def display_process_visualization(process: List[str]):
             ascii_graph += "\n"
     ascii_graph += "\n==============================="
     st.code(ascii_graph)
-    # Networkx Graph
     st.markdown("#### Process Flowchart")
     try:
         G = nx.DiGraph()
@@ -367,7 +362,7 @@ def main():
                     st.error(f"Failed to generate personas: {str(e)}")
         else:
             display_persona_cards(st.session_state.personas)
-        st.markdown("### Persona Library")
+855        st.markdown("### Persona Library")
         saved_personas = get_all_personas()
         if saved_personas:
             with st.expander("View/Edit Persona Library", expanded=False):
@@ -414,10 +409,20 @@ def main():
     # Step 3: Run Simulation
     elif st.session_state.step == 3:
         st.header("Step 3: Run Simulation")
-        st.info("Simulate the debate among stakeholders using Grok-3-Beta.")
+        st.info("Select a simulation method to model stakeholder debates.")
         st.write("Debug: Dilemma:", st.session_state.dilemma[:100] + "..." if len(st.session_state.dilemma) > 100 else st.session_state.dilemma)
         st.write("Debug: Personas:", [p["name"] for p in st.session_state.personas])
         st.write("Debug: Extracted Process:", st.session_state.extracted.get("process", []))
+        simulation_type = st.selectbox(
+            "Simulation Method:",
+            [
+                "Grok 3 Beta Simulation",
+                "AgentIQ Simulation (Work in Progress)",
+                "Monte Carlo Simulation",
+                "Game Theory Simulation"
+            ],
+            key="simulation_type"
+        )
         simulation_time_minutes = st.slider(
             "Set Maximum Simulation Time (minutes):",
             min_value=1,
@@ -429,16 +434,26 @@ def main():
         simulation_time_seconds = simulation_time_minutes * 60
         if st.button("Start Simulation", key="start_simulation"):
             try:
-                with st.spinner(f"Running Grok-3-Beta simulation (timeout: {simulation_time_minutes} minutes)..."):
+                with st.spinner(f"Running {simulation_type} (timeout: {simulation_time_minutes} minutes)..."):
                     dilemma = str(st.session_state.dilemma) if st.session_state.dilemma else "Unknown dilemma"
-                    st.session_state.transcript = simulate_debate(
-                        personas=st.session_state.personas,
-                        dilemma=dilemma,
-                        process_hint=dilemma,
-                        extracted=st.session_state.extracted,
-                        scenarios="",
-                        max_simulation_time=simulation_time_seconds
-                    )
+                    if simulation_type == "AgentIQ Simulation (Work in Progress)":
+                        st.warning("AgentIQ Simulation is under development and not yet available.")
+                        st.session_state.transcript = [{
+                            "agent": "System",
+                            "round": 1,
+                            "step": "N/A",
+                            "message": "AgentIQ Simulation is not implemented. Please select another method."
+                        }]
+                    else:
+                        st.session_state.transcript = simulate_debate(
+                            personas=st.session_state.personas,
+                            dilemma=dilemma,
+                            process_hint=dilemma,
+                            extracted=st.session_state.extracted,
+                            scenarios="",
+                            max_simulation_time=simulation_time_seconds,
+                            simulation_type=simulation_type
+                        )
                 st.session_state.step = 4
                 st.success("Simulation complete!")
                 st.rerun()
@@ -460,7 +475,7 @@ def main():
                     analysis_input = json.dumps({"transcript": st.session_state.transcript, "dilemma": st.session_state.dilemma})
                     st.session_state.analysis = json.loads(transcript_analyzer(analysis_input))
                     keywords = [word for entry in st.session_state.transcript for word in entry['message'].split() if len(word) > 5]
-                    generate_visuals(keywords, st.session_state.transcript)
+                    generate_visuals(keywords, st.session_state.transcript, st.session_state.personas)
                 st.session_state.step = 5
                 st.success("Analysis complete!")
                 st.rerun()
@@ -493,23 +508,61 @@ def main():
         if analysis.get("insights"):
             st.markdown("**Insights**")
             st.write(analysis["insights"])
+        if analysis.get("main_points"):
+            st.markdown("**Main Points**")
+            for point in analysis["main_points"]:
+                st.write(f"- {point}")
+        if analysis.get("improvement_areas"):
+            st.markdown("**Areas for Improvement**")
+            for area in analysis["improvement_areas"]:
+                st.write(f"- {area}")
+        if analysis.get("problematic_stakeholders"):
+            st.markdown("**Problematic Stakeholders**")
+            for stakeholder in analysis["problematic_stakeholders"]:
+                st.write(f"- {stakeholder['name']}: {stakeholder['issue']}")
+        if analysis.get("tone_analysis"):
+            st.markdown("**Tone Analysis**")
+            for tone in analysis["tone_analysis"]:
+                st.write(f"- {tone['agent']}: {tone['tone']} (Score: {tone['score']:.2f})")
+        if analysis.get("contentions"):
+            st.markdown("**Areas of Contention**")
+            for contention in analysis["contentions"]:
+                st.write(f"- {contention['issue']}: Involves {', '.join(contention['stakeholders'])}")
+        if analysis.get("process_suggestions"):
+            st.markdown("**Suggestions for Smoother Negotiation**")
+            for suggestion in analysis["process_suggestions"]:
+                st.write señora
         st.markdown("### Visual Insights")
         st.subheader("Word Cloud")
         try:
-            st.image("word_cloud.png", use_column_width=True)
+            with open("word_cloud.png", "rb") as f:
+                st.image(f.read(), use_column_width=True)
         except FileNotFoundError:
             st.warning("Word cloud unavailable.")
         st.subheader("Stakeholder Interaction Network")
         try:
             with open("network_graph.png", "rb") as f:
-                st.image(f, use_column_width=True)
+                st.image(f.read(), use_column_width=True)
         except FileNotFoundError:
             st.warning("Network graph unavailable.")
         st.subheader("Negotiation Conflict Heatmap")
         try:
-            st.image("conflict_heatmap.png", use_column_width=True)
+            with open("conflict_heatmap.png", "rb") as f:
+                st.image(f.read(), use_column_width=True)
         except FileNotFoundError:
             st.warning("Conflict heatmap unavailable.")
+        st.subheader("Tone Analysis Heatmap")
+        try:
+            with open("tone_heatmap.png", "rb") as f:
+                st.image(f.read(), use_column_width=True)
+        except FileNotFoundError:
+            st.warning("Tone heatmap unavailable.")
+        st.subheader("Contention Network")
+        try:
+            with open("contention_network.png", "rb") as f:
+                st.image(f.read(), use_column_width=True)
+        except FileNotFoundError:
+            st.warning("Contention network unavailable.")
         st.markdown("### Export Results")
         col1, col2, col3, col4 = st.columns(4)
         with col1:
