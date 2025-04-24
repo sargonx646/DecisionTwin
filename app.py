@@ -16,6 +16,9 @@ from utils.db import save_persona, get_all_personas, init_db, update_persona, de
 # Initialize database
 init_db()
 
+# Create personas directory
+os.makedirs("personas", exist_ok=True)
+
 # Check for API key
 if not os.getenv("XAI_API_KEY"):
     st.error("XAI_API_KEY environment variable is not set. Please configure it in .env.")
@@ -96,43 +99,102 @@ def generate_mock_dilemma():
     ]
     return random.choice(scenarios)["dilemma"]
 
+def save_persona_to_json(persona: Dict, filename: str):
+    """Save persona to a JSON file."""
+    try:
+        with open(f"personas/{filename}", "w") as f:
+            json.dump(persona, f, indent=2)
+    except Exception as e:
+        st.error(f"Error saving persona to JSON: {str(e)}")
+
+def load_persona_from_json(filename: str) -> Dict:
+    """Load persona from a JSON file."""
+    try:
+        with open(f"personas/{filename}", "r") as f:
+            return json.load(f)
+    except Exception as e:
+        st.error(f"Error loading persona from JSON: {str(e)}")
+        return {}
+
 def display_persona_cards(personas: List[Dict]):
-    """Display personas as a card deck with expandable details."""
+    """Display personas as a card deck with editable fields."""
     cols = st.columns(3)
     for i, persona in enumerate(personas):
         with cols[i % 3]:
-            with st.expander(f"{persona['name']} ({persona.get('role', 'Unknown Role')})", expanded=False):
-                st.markdown(f"**Goals**: {', '.join(persona['goals'])}")
-                st.markdown(f"**Biases**: {', '.join(persona['biases'])}")
-                st.markdown(f"**Tone**: {persona['tone'].capitalize()}")
-                st.markdown(f"**Bio**: {persona['bio']}")
-                st.markdown(f"**Expected Behavior**: {persona['expected_behavior']}")
+            with st.form(key=f"edit_persona_card_{i}"):
+                st.markdown(f"**{persona['name']} ({persona.get('role', 'Unknown Role')})**")
+                name = st.text_input("Name", value=persona["name"], key=f"card_name_{i}")
+                role = st.text_input("Role/Title", value=persona.get("role", "Unknown Role"), key=f"card_role_{i}")
+                bio = st.text_area("Bio", value=persona["bio"], height=100, key=f"card_bio_{i}")
+                psychological_traits = st.text_area("Psychological Traits", value=", ".join(persona.get("psychological_traits", persona["goals"])), key=f"card_traits_{i}")
+                influences = st.text_area("Influences", value=", ".join(persona.get("influences", persona["biases"])), key=f"card_influences_{i}")
+                biases = st.text_area("Biases", value=", ".join(persona["biases"]), key=f"card_biases_{i}")
+                historical_behavior = st.text_area("Historical Behavior", value=persona.get("historical_behavior", persona["expected_behavior"]), key=f"card_behavior_{i}")
+                tone = st.text_input("Tone", value=persona["tone"], key=f"card_tone_{i}")
+                if st.form_submit_button("Update Persona"):
+                    updated_persona = {
+                        "name": name,
+                        "role": role,
+                        "bio": bio,
+                        "psychological_traits": psychological_traits.split(", "),
+                        "influences": influences.split(", "),
+                        "biases": biases.split(", "),
+                        "historical_behavior": historical_behavior,
+                        "tone": tone,
+                        "goals": persona["goals"],  # Preserve from original
+                        "expected_behavior": persona["expected_behavior"]
+                    }
+                    personas[i] = updated_persona
+                    save_persona(updated_persona)
+                    save_persona_to_json(updated_persona, f"{name.replace(' ', '_').lower()}.json")
+                    st.success(f"Persona {name} updated and saved!")
+                    st.rerun()
                 if st.button("Save to Library", key=f"save_persona_{i}"):
                     save_persona(persona)
+                    save_persona_to_json(persona, f"{persona['name'].replace(' ', '_').lower()}.json")
                     st.success(f"Persona {persona['name']} saved to library.")
                 if st.button("Replace with Library Persona", key=f"replace_persona_{i}"):
                     st.session_state[f"replace_index_{i}"] = True
                 if st.session_state.get(f"replace_index_{i}", False):
                     saved_personas = get_all_personas()
-                    if saved_personas:
-                        library_options = [p["name"] for p in saved_personas]
+                    hardcoded_personas = [
+                        load_persona_from_json("jfk.json"),
+                        load_persona_from_json("lincoln.json")
+                    ]
+                    library_options = [p["name"] for p in saved_personas + hardcoded_personas if p]
+                    if library_options:
                         selected_persona = st.selectbox("Select Persona", library_options, key=f"select_persona_{i}")
                         if st.button("Confirm Replace", key=f"confirm_replace_{i}"):
-                            persona_index = library_options.index(selected_persona)
-                            personas[i] = saved_personas[persona_index]
-                            st.session_state[f"replace_index_{i}"] = False
-                            st.rerun()
+                            for p in saved_personas + hardcoded_personas:
+                                if p and p["name"] == selected_persona:
+                                    personas[i] = p
+                                    save_persona(p)
+                                    save_persona_to_json(p, f"{p['name'].replace(' ', '_').lower()}.json")
+                                    st.session_state[f"replace_index_{i}"] = False
+                                    st.rerun()
                     else:
                         st.warning("No personas in library.")
 
 def display_process_visualization(process: List[str]):
-    """Display the decision-making process as a stylized ASCII and markdown flowchart."""
+    """Display the decision-making process as ASCII timeline, graph, and Mermaid flowchart."""
     st.markdown("### Decision-Making Process")
+    # ASCII Timeline
     ascii_timeline = "=== Process Timeline ===\n"
     for i, step in enumerate(process, 1):
         ascii_timeline += f"{i}. {step}\n"
     ascii_timeline += "======================="
     st.code(ascii_timeline)
+    # ASCII Graph
+    ascii_graph = "=== Process Dependency Graph ===\n"
+    for i, step in enumerate(process, 1):
+        ascii_graph += f"[{step}]"
+        if i < len(process):
+            ascii_graph += " --> "
+        if i % 2 == 0:
+            ascii_graph += "\n"
+    ascii_graph += "\n==============================="
+    st.code(ascii_graph)
+    # Mermaid Flowchart
     st.markdown("#### Process Flowchart")
     flowchart = "```mermaid\ngraph TD\n"
     for i, step in enumerate(process, 1):
@@ -161,13 +223,9 @@ def main():
     elif st.session_state.step == 1:
         st.header("Step 1: Define Your Decision")
         st.info("Provide details about your decision dilemma, process, stakeholders, and upload a PDF for context.")
-        
-        # Mock dilemma button
         if st.button("Generate Mock Dilemma", key="mock_dilemma"):
             st.session_state.dilemma = generate_mock_dilemma()
             st.rerun()
-
-        # Decision input form
         with st.form(key="decision_form"):
             context_input = st.text_area(
                 "Describe the decision dilemma, process, and stakeholders:",
@@ -177,8 +235,7 @@ def main():
                 key="context_input"
             )
             uploaded_file = st.file_uploader("Upload a PDF with additional context (optional)", type="pdf", key="pdf_upload")
-            submitted = st.form_submit_button("Extract Decision Structure")
-            if submitted:
+            if st.form_submit_button("Extract Decision Structure"):
                 if context_input.strip():
                     if uploaded_file:
                         pdf_text = read_pdf(uploaded_file)
@@ -209,6 +266,7 @@ def main():
                         st.session_state.personas = generate_personas(st.session_state.extracted)
                         for persona in st.session_state.personas:
                             save_persona(persona)
+                            save_persona_to_json(persona, f"{persona['name'].replace(' ', '_').lower()}.json")
                     st.success("Personas generated and saved successfully!")
                     st.rerun()
                 except Exception as e:
@@ -220,7 +278,9 @@ def main():
         if saved_personas:
             with st.expander("View/Edit Persona Library", expanded=False):
                 for persona in saved_personas:
-                    with st.form(f"edit_db_persona_{persona['id']}", clear_on_submit=True):
+                    if not persona.get("id"):
+                        continue  # Skip invalid personas
+                    with st.form(key=f"edit_db_persona_{persona['id']}", clear_on_submit=True):
                         name = st.text_input("Name", value=persona["name"], key=f"name_{persona['id']}")
                         goals = st.text_area("Goals", value=", ".join(persona["goals"]), key=f"goals_{persona['id']}")
                         biases = st.text_area("Biases", value=", ".join(persona["biases"]), key=f"biases_{persona['id']}")
@@ -229,7 +289,7 @@ def main():
                         expected_behavior = st.text_area("Expected Behavior", value=persona["expected_behavior"], height=100, key=f"behavior_{persona['id']}")
                         col1, col2 = st.columns(2)
                         with col1:
-                            if st.form_submit_button("Update Persona", key=f"update_persona_{persona['id']}"):
+                            if st.form_submit_button("Update Persona"):
                                 updated_persona = {
                                     "id": persona["id"],
                                     "name": name,
@@ -240,10 +300,11 @@ def main():
                                     "expected_behavior": expected_behavior
                                 }
                                 update_persona(updated_persona)
+                                save_persona_to_json(updated_persona, f"{name.replace(' ', '_').lower()}.json")
                                 st.success(f"Persona {name} updated in database!")
                                 st.rerun()
                         with col2:
-                            if st.form_submit_button("Delete Persona", key=f"delete_persona_{persona['id']}"):
+                            if st.form_submit_button("Delete Persona"):
                                 delete_persona(persona["id"])
                                 st.success(f"Persona {name} deleted from database!")
                                 st.rerun()
