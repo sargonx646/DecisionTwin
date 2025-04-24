@@ -80,6 +80,22 @@ def read_pdf(file) -> str:
         st.error(f"Error reading PDF: {str(e)}")
         return ""
 
+def generate_mock_dilemma():
+    """Generate a mock decision dilemma."""
+    scenarios = [
+        {
+            "dilemma": "Should the city allocate its annual budget surplus to improve public transportation or to fund affordable housing initiatives?\n\n"
+                      "Process: 1. Budget Committee reviews options over 2 months. 2. Public consultation in month 3. 3. City Council votes in month 4.\n"
+                      "Stakeholders: Sarah (Budget Committee Chair), James (Public Transit Advocate), Maria (Housing Authority Director), Tom (City Council Member)"
+        },
+        {
+            "dilemma": "Should the company invest in a new AI-driven product line or focus on expanding its existing market share in traditional products?\n\n"
+                      "Process: 1. R&D team evaluates feasibility (3 months). 2. Marketing assesses market demand (1 month). 3. Board decides (2 weeks).\n"
+                      "Stakeholders: Alex (CEO), Rachel (R&D Director), Sam (Marketing VP), Lisa (CFO)"
+        }
+    ]
+    return random.choice(scenarios)["dilemma"]
+
 def display_persona_cards(personas: List[Dict]):
     """Display personas as a card deck with expandable details."""
     cols = st.columns(3)
@@ -145,15 +161,23 @@ def main():
     elif st.session_state.step == 1:
         st.header("Step 1: Define Your Decision")
         st.info("Provide details about your decision dilemma, process, stakeholders, and upload a PDF for context.")
-        with st.form("decision_form"):
+        
+        # Mock dilemma button
+        if st.button("Generate Mock Dilemma", key="mock_dilemma"):
+            st.session_state.dilemma = generate_mock_dilemma()
+            st.rerun()
+
+        # Decision input form
+        with st.form(key="decision_form"):
             context_input = st.text_area(
                 "Describe the decision dilemma, process, and stakeholders:",
                 height=200,
+                value=st.session_state.dilemma,
                 placeholder="E.g., Allocate $10M budget across departments. Involves CEO, CFO, HR, and department heads.",
                 key="context_input"
             )
             uploaded_file = st.file_uploader("Upload a PDF with additional context (optional)", type="pdf", key="pdf_upload")
-            submitted = st.form_submit_button("Extract Decision Structure", key="extract_structure")
+            submitted = st.form_submit_button("Extract Decision Structure")
             if submitted:
                 if context_input.strip():
                     if uploaded_file:
