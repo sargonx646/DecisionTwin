@@ -321,6 +321,10 @@ def main():
     elif st.session_state.step == 3:
         st.header("Step 3: Run Simulation")
         st.info("Simulate the debate among stakeholders using Grok-3-Beta.")
+        # Debug inputs
+        st.write("Debug: Dilemma:", st.session_state.dilemma[:100] + "..." if len(st.session_state.dilemma) > 100 else st.session_state.dilemma)
+        st.write("Debug: Personas:", [p["name"] for p in st.session_state.personas])
+        st.write("Debug: Extracted Process:", st.session_state.extracted.get("process", []))
         simulation_time_minutes = st.slider(
             "Set Maximum Simulation Time (minutes):",
             min_value=1,
@@ -333,10 +337,12 @@ def main():
         if st.button("Start Simulation", key="start_simulation"):
             try:
                 with st.spinner(f"Running Grok-3-Beta simulation (timeout: {simulation_time_minutes} minutes)..."):
+                    # Ensure dilemma is a string
+                    dilemma = str(st.session_state.dilemma) if st.session_state.dilemma else "Unknown dilemma"
                     st.session_state.transcript = simulate_debate(
                         personas=st.session_state.personas,
-                        dilemma=st.session_state.dilemma,
-                        process_hint=st.session_state.dilemma,
+                        dilemma=dilemma,
+                        process_hint=dilemma,
                         extracted=st.session_state.extracted,
                         scenarios="",
                         max_simulation_time=simulation_time_seconds
