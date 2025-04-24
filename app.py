@@ -362,7 +362,7 @@ def main():
                     st.error(f"Failed to generate personas: {str(e)}")
         else:
             display_persona_cards(st.session_state.personas)
-855        st.markdown("### Persona Library")
+        st.markdown("### Persona Library")
         saved_personas = get_all_personas()
         if saved_personas:
             with st.expander("View/Edit Persona Library", expanded=False):
@@ -531,35 +531,35 @@ def main():
         if analysis.get("process_suggestions"):
             st.markdown("**Suggestions for Smoother Negotiation**")
             for suggestion in analysis["process_suggestions"]:
-                st.write señora
+                st.write(f"- {suggestion}")
         st.markdown("### Visual Insights")
         st.subheader("Word Cloud")
         try:
-            with open("word_cloud.png", "rb") as f:
+            with open("visuals/word_cloud.png", "rb") as f:
                 st.image(f.read(), use_column_width=True)
         except FileNotFoundError:
             st.warning("Word cloud unavailable.")
         st.subheader("Stakeholder Interaction Network")
         try:
-            with open("network_graph.png", "rb") as f:
+            with open("visuals/network_graph.png", "rb") as f:
                 st.image(f.read(), use_column_width=True)
         except FileNotFoundError:
             st.warning("Network graph unavailable.")
         st.subheader("Negotiation Conflict Heatmap")
         try:
-            with open("conflict_heatmap.png", "rb") as f:
+            with open("visuals/conflict_heatmap.png", "rb") as f:
                 st.image(f.read(), use_column_width=True)
         except FileNotFoundError:
             st.warning("Conflict heatmap unavailable.")
         st.subheader("Tone Analysis Heatmap")
         try:
-            with open("tone_heatmap.png", "rb") as f:
+            with open("visuals/tone_heatmap.png", "rb") as f:
                 st.image(f.read(), use_column_width=True)
         except FileNotFoundError:
             st.warning("Tone heatmap unavailable.")
         st.subheader("Contention Network")
         try:
-            with open("contention_network.png", "rb") as f:
+            with open("visuals/contention_network.png", "rb") as f:
                 st.image(f.read(), use_column_width=True)
         except FileNotFoundError:
             st.warning("Contention network unavailable.")
@@ -583,7 +583,7 @@ def main():
             )
         with col3:
             try:
-                with open("word_cloud.png", "rb") as f:
+                with open("visuals/word_cloud.png", "rb") as f:
                     st.download_button(
                         label="🖼️ Word Cloud (PNG)",
                         data=f,
@@ -595,7 +595,7 @@ def main():
                 st.warning("Word cloud unavailable.")
         with col4:
             try:
-                with open("conflict_heatmap.png", "rb") as f:
+                with open("visuals/conflict_heatmap.png", "rb") as f:
                     st.download_button(
                         label="📊 Conflict Heatmap (PNG)",
                         data=f,
