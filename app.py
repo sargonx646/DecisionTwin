@@ -4,6 +4,7 @@ import os
 import random
 import PyPDF2
 from io import BytesIO
+from typing import List, Dict
 from agents.extractor import extract_decision_structure
 from agents.persona_builder import generate_personas
 from agents.debater import simulate_debate
@@ -148,10 +149,11 @@ def main():
             context_input = st.text_area(
                 "Describe the decision dilemma, process, and stakeholders:",
                 height=200,
-                placeholder="E.g., Allocate $10M budget across departments. Involves CEO, CFO, HR, and department heads."
+                placeholder="E.g., Allocate $10M budget across departments. Involves CEO, CFO, HR, and department heads.",
+                key="context_input"
             )
             uploaded_file = st.file_uploader("Upload a PDF with additional context (optional)", type="pdf", key="pdf_upload")
-            submitted = st.form_submit_button("Extract Decision Structure")
+            submitted = st.form_submit_button("Extract Decision Structure", key="extract_structure")
             if submitted:
                 if context_input.strip():
                     if uploaded_file:
@@ -192,18 +194,18 @@ def main():
         st.markdown("### Persona Library")
         saved_personas = get_all_personas()
         if saved_personas:
-            with st.expander("View/Edit Persona Library"):
+            with st.expander("View/Edit Persona Library", expanded=False):
                 for persona in saved_personas:
-                    with st.form(f"edit_db_persona_{persona['id']}"):
-                        name = st.text_input("Name", value=persona["name"])
-                        goals = st.text_area("Goals", value=", ".join(persona["goals"]))
-                        biases = st.text_area("Biases", value=", ".join(persona["biases"]))
-                        tone = st.text_input("Tone", value=persona["tone"])
-                        bio = st.text_area("Bio", value=persona["bio"], height=150)
-                        expected_behavior = st.text_area("Expected Behavior", value=persona["expected_behavior"], height=100)
+                    with st.form(f"edit_db_persona_{persona['id']}", clear_on_submit=True):
+                        name = st.text_input("Name", value=persona["name"], key=f"name_{persona['id']}")
+                        goals = st.text_area("Goals", value=", ".join(persona["goals"]), key=f"goals_{persona['id']}")
+                        biases = st.text_area("Biases", value=", ".join(persona["biases"]), key=f"biases_{persona['id']}")
+                        tone = st.text_input("Tone", value=persona["tone"], key=f"tone_{persona['id']}")
+                        bio = st.text_area("Bio", value=persona["bio"], height=150, key=f"bio_{persona['id']}")
+                        expected_behavior = st.text_area("Expected Behavior", value=persona["expected_behavior"], height=100, key=f"behavior_{persona['id']}")
                         col1, col2 = st.columns(2)
                         with col1:
-                            if st.form_submit_button("Update Persona"):
+                            if st.form_submit_button("Update Persona", key=f"update_persona_{persona['id']}"):
                                 updated_persona = {
                                     "id": persona["id"],
                                     "name": name,
@@ -217,7 +219,7 @@ def main():
                                 st.success(f"Persona {name} updated in database!")
                                 st.rerun()
                         with col2:
-                            if st.form_submit_button("Delete Persona"):
+                            if st.form_submit_button("Delete Persona", key=f"delete_persona_{persona['id']}"):
                                 delete_persona(persona["id"])
                                 st.success(f"Persona {name} deleted from database!")
                                 st.rerun()
@@ -301,10 +303,13 @@ def main():
             st.markdown("**Negotiation Conflicts**")
             for conflict in analysis["conflicts"]:
                 st.write(f"- {conflict} - Potential issue: Misaligned priorities or power imbalance.")
+        if analysis.get("negotiation_issues"):
+            st.markdown("**Negotiation Issues**")
+            for issue in analysis["negotiation_issues"]:
+                st.write(f"- {issue}")
         if analysis.get("insights"):
             st.markdown("**Insights**")
             st.write(analysis["insights"])
-            st.write("- **Observation**: High conflict count may indicate negotiation deadlocks; consider mediation or revised process steps.")
         st.markdown("### Visual Insights")
         st.subheader("Word Cloud")
         try:
@@ -313,8 +318,8 @@ def main():
             st.warning("Word cloud unavailable.")
         st.subheader("Stakeholder Interaction Network")
         try:
-            with open("network_graph.html", "r") as f:
-                st.components.v1.html(f.read(), height=500, scrolling=True)
+            with open("network_graph.png", "rb") as f:
+                st.image(f, use_column_width=True)
         except FileNotFoundError:
             st.warning("Network graph unavailable.")
         st.subheader("Negotiation Conflict Heatmap")
