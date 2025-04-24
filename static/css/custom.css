@@ -1,0 +1,166 @@
+/* Custom styles for Twin Decision Making AI Companion */
+.header-container {
+    text-align: center;
+    padding: 30px;
+    background: linear-gradient(135deg, #4B6CB7, #182848);
+    border-radius: 12px;
+    margin-bottom: 20px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.header-title {
+    color: #FFFFFF;
+    font-size: 2.8em;
+    margin: 0;
+    font-weight: 700;
+}
+
+.header-subtitle {
+    color: #E0E7FF;
+    font-size: 1.3em;
+    margin: 8px 0;
+}
+
+.step-info {
+    display: flex;
+    align-items: center;
+    background: #F7FAFC;
+    padding: 15px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-left: 5px solid #4B6CB7;
+    animation: fadeIn 0.5s ease-in;
+}
+
+.step-icon {
+    font-size: 2em;
+    color: #4B6CB7;
+    margin-right: 15px;
+    animation: pulse 2s infinite;
+}
+
+input, textarea {
+    border: 2px solid #E2E8F0 !important;
+    border-radius: 8px !important;
+    padding: 12px !important;
+    transition: border-color 0.3s, box-shadow 0.3s;
+}
+
+input:focus, textarea:focus {
+    border-color: #4B6CB7 !important;
+    box-shadow: 0 0 5px rgba(75, 108, 183, 0.3) !important;
+}
+
+.stButton>button {
+    background: #4B6CB7;
+    color: #FFFFFF;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.1em;
+    transition: background 0.3s;
+}
+
+.stButton>button:hover {
+    background: #3B5998;
+}
+
+.persona-card {
+    background: #FFFFFF;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+    margin-bottom: 15px;
+    transition: transform 0.2s;
+}
+
+.persona-card:hover {
+    transform: translateY(-5px);
+}
+
+.debate-container {
+    background: #FFFFFF;
+    padding: 25px;
+    border-radius: 10px;
+    box-shadow: 0 3px 6px rgba(0,0,0,0.1);
+}
+
+.debate-message {
+    background: #F7FAFC;
+    padding: 12px;
+    margin: 8px 0;
+    border-radius: 6px;
+    animation: fadeIn 0.5s;
+}
+
+.summary-box, .suggestion-box {
+    background: #4B6CB7;
+    color: #FFFFFF;
+    padding: 20px;
+    border-radius: 10px;
+    margin: 15px 0;
+}
+
+.cta-box {
+    text-align: center;
+    padding: 25px;
+    background: #F7FAFC;
+    border-radius: 10px;
+    margin-top: 25px;
+}
+
+.cta-box button {
+    background: #4B6CB7;
+    color: #FFFFFF;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1.2em;
+}
+
+.cta-box button:hover {
+    background: #3B5998;
+}
+
+.modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.modal-content {
+    background: #FFFFFF;
+    padding: 25px;
+    border-radius: 10px;
+    max-width: 600px;
+    text-align: center;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.modal-content button {
+    background: #4B6CB7;
+    color: #FFFFFF;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}

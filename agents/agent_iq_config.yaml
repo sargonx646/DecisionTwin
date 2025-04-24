@@ -1,0 +1,26 @@
+functions:
+  internet_search:
+    _type: tavily_internet_search
+    description: "Search the internet for relevant information about the dilemma or stakeholder roles."
+  transcript_analyzer:
+    _type: transcript_analyzer
+    description: "Analyze the debate transcript to identify key themes, conflicts, and insights."
+
+llms:
+  nim_llm:
+    _type: nim
+    model_name: meta/llama-3.1-70b-instruct
+    temperature: 0.7
+
+embedders:
+  nv-embedqa-e5-v5:
+    _type: nim
+    model_name: nvidia/nv-embedqa-e5-v5
+
+workflow:
+  _type: react_agent
+  tool_names: [internet_search, transcript_analyzer]
+  llm_name: nim_llm
+  verbose: true
+  retry_parsing_errors: true
+  max_retries: 3
