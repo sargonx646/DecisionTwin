@@ -5,6 +5,8 @@ import random
 import PyPDF2
 from io import BytesIO
 from typing import List, Dict
+import networkx as nx
+import matplotlib.pyplot as plt
 from agents.extractor import extract_decision_structure
 from agents.persona_builder import generate_personas
 from agents.debater import simulate_debate
@@ -24,6 +26,70 @@ if not os.getenv("XAI_API_KEY"):
     st.error("XAI_API_KEY environment variable is not set. Please configure it in .env.")
     st.stop()
 
+# Embedded hardcoded personas to avoid file dependency issues
+HARDCODED_PERSONAS = [
+    {
+        "name": "John F. Kennedy",
+        "role": "Former U.S. President",
+        "bio": "John Fitzgerald Kennedy (1917–1963) was the 35th President of the United States, serving from 1961 until his assassination in 1963. A charismatic leader, he navigated the Cold War, the Cuban Missile Crisis, and the Civil Rights Movement. Known for his eloquent speeches and vision for space exploration, JFK emphasized diplomacy and innovation.",
+        "psychological_traits": ["charismatic", "decisive", "optimistic", "pragmatic"],
+        "influences": ["public opinion", "international allies", "military advisors", "media"],
+        "biases": ["optimism bias", "groupthink", "confirmation bias"],
+        "historical_behavior": "Consensus-driven, proactive in crises, long-term strategist",
+        "tone": "inspirational",
+        "goals": ["promote global peace", "advance technology", "strengthen national unity"],
+        "expected_behavior": "JFK negotiates with an inspirational and diplomatic tone, seeking consensus while pushing innovative solutions."
+    },
+    {
+        "name": "Abraham Lincoln",
+        "role": "Former U.S. President",
+        "bio": "Abraham Lincoln (1809–1865) was the 16th President of the United States, leading the nation through the Civil War (1861–1865). He issued the Emancipation Proclamation, preserving the Union and advancing abolition. A self-educated lawyer, Lincoln was known for his honesty, empathy, and strategic thinking.",
+        "psychological_traits": ["empathetic", "analytical", "resilient", "collaborative"],
+        "influences": ["abolitionists", "military leaders", "public sentiment", "economic advisors"],
+        "biases": ["status quo bias", "anchoring bias"],
+        "historical_behavior": "Data-driven, consensus-driven, long-term strategist",
+        "tone": "empathetic",
+        "goals": ["preserve union", "advance equality", "stabilize economy"],
+        "expected_behavior": "Lincoln negotiates with empathy and persuasion, focusing on data-driven solutions and long-term stability."
+    },
+    {
+        "name": "Joe Biden",
+        "role": "Former U.S. President",
+        "bio": "Joseph Robinette Biden Jr. (born November 20, 1942) served as the 46th U.S. President (2021–2025), defeating Donald Trump in 2020. A career politician, he was Vice President (2009–2017) under Barack Obama and a U.S. Senator from Delaware (1973–2009). Biden’s presidency focused on COVID-19 recovery, infrastructure, climate change, and restoring U.S. alliances, but faced criticism over inflation, Afghanistan withdrawal, and immigration. Known for his empathy and resilience, shaped by personal tragedies, Biden is a moderate Democrat with a pragmatic approach. His verbal gaffes and age-related concerns dominated his 2024 campaign narrative.",
+        "psychological_traits": ["empathetic", "resilient", "deliberative", "conciliatory", "prone to overconfidence"],
+        "influences": ["Democratic Party establishment", "labor unions", "international allies", "public opinion", "personal advisors"],
+        "biases": ["status quo bias", "confirmation bias", "anchoring bias"],
+        "historical_behavior": "Consensus-driven, pragmatic, relationship-focused",
+        "tone": "empathetic",
+        "goals": ["restore democratic norms", "advance social equity", "strengthen alliances", "combat climate change"],
+        "expected_behavior": "Biden negotiates with a focus on compromise, leveraging relationships and institutional knowledge, but may struggle with rapid debates."
+    },
+    {
+        "name": "Emmanuel Macron",
+        "role": "President of France",
+        "bio": "Emmanuel Jean-Michel Frédéric Macron (born December 21, 1977) is a centrist politician leading France since 2017. A former investment banker, he founded La République En Marche! and won the presidency in 2017 and 2022. His policies emphasize labor market flexibility, pension reform, and green energy, but have sparked protests. Globally, he champions multilateralism, climate action, and European sovereignty, often mediating in conflicts. His intellectual style and perceived elitism polarize voters.",
+        "psychological_traits": ["intellectual", "ambitious", "adaptive", "perfectionist", "aloof"],
+        "influences": ["European leaders", "French technocrats", "global institutions", "public sentiment"],
+        "biases": ["elitism bias", "optimism bias", "self-serving bias"],
+        "historical_behavior": "Strategic, diplomatic, risk-taking",
+        "tone": "articulate",
+        "goals": ["strengthen EU autonomy", "drive economic modernization", "lead global climate efforts", "maintain France’s influence"],
+        "expected_behavior": "Macron negotiates with intellectual rigor, seeking win-win outcomes but prioritizing French and EU interests."
+    },
+    {
+        "name": "Donald Trump",
+        "role": "U.S. President",
+        "bio": "Donald John Trump (born June 14, 1946) is the 47th U.S. President (2025–present; 45th, 2017–2021). A businessman and media personality, he reshaped U.S. politics with his populist, America First agenda. His presidencies focus on tax cuts, deregulation, border security, and trade protectionism. His first term included the 2017 Tax Cuts and Jobs Act and Abraham Accords, but was marred by impeachment and COVID-19 criticism. His 2024 campaign leveraged anti-establishment sentiment, securing a second term. Recent actions include declassifying JFK files and imposing tariffs.",
+        "psychological_traits": ["assertive", "narcissistic", "opportunistic", "resilient", "polarizing"],
+        "influences": ["conservative base", "business allies", "international strongmen", "media"],
+        "biases": ["confirmation bias", "zero-sum bias", "recency bias"],
+        "historical_behavior": "Disruptive, transactional, media-savvy",
+        "tone": "confident",
+        "goals": ["restore U.S. economic dominance", "secure borders", "dismantle deep state", "project global strength"],
+        "expected_behavior": "Trump negotiates aggressively, using leverage to extract concessions, thriving in high-stakes confrontations."
+    }
+]
+
 # Initialize session state
 if "step" not in st.session_state:
     st.session_state.step = 0
@@ -42,7 +108,7 @@ if "suggestion" not in st.session_state:
 if "analysis" not in st.session_state:
     st.session_state.analysis = {}
 if "replace_index" not in st.session_state:
-    st.session_state.replace_index = {}  # Track replace state per persona
+    st.session_state.replace_index = {}
 
 # Sidebar with logo and navigation
 st.sidebar.image("https://github.com/sargonx646/DF_22AprilLate/raw/main/assets/decisionforge_logo.png.png", use_column_width=True)
@@ -110,10 +176,17 @@ def save_persona_to_json(persona: Dict, filename: str):
         st.error(f"Error saving persona to JSON: {str(e)}")
 
 def load_persona_from_json(filename: str) -> Dict:
-    """Load persona from a JSON file."""
+    """Load persona from a JSON file or return embedded data."""
     try:
         with open(f"personas/{filename}", "r") as f:
             return json.load(f)
+    except FileNotFoundError:
+        # Fallback to embedded personas
+        for persona in HARDCODED_PERSONAS:
+            if persona["name"].replace(" ", "_").lower() + ".json" == filename:
+                return persona
+        st.error(f"Persona file {filename} not found and not in embedded data.")
+        return {}
     except Exception as e:
         st.error(f"Error loading persona from JSON: {str(e)}")
         return {}
@@ -166,10 +239,7 @@ def display_persona_cards(personas: List[Dict]):
                     st.rerun()
                 if st.session_state.replace_index.get(i, False):
                     saved_personas = get_all_personas()
-                    hardcoded_personas = [
-                        load_persona_from_json("jfk.json"),
-                        load_persona_from_json("lincoln.json")
-                    ]
+                    hardcoded_personas = HARDCODED_PERSONAS
                     library_options = [p["name"] for p in saved_personas + hardcoded_personas if p]
                     if library_options:
                         selected_persona = st.selectbox("Select Persona", library_options, key=f"select_persona_{i}")
@@ -187,7 +257,7 @@ def display_persona_cards(personas: List[Dict]):
                 st.error(f"Error in replace persona: {str(e)}")
 
 def display_process_visualization(process: List[str]):
-    """Display the decision-making process as ASCII timeline, graph, and Mermaid flowchart."""
+    """Display the decision-making process as ASCII timeline, graph, and a networkx graph."""
     st.markdown("### Decision-Making Process")
     # ASCII Timeline
     ascii_timeline = "=== Process Timeline ===\n"
@@ -205,14 +275,26 @@ def display_process_visualization(process: List[str]):
             ascii_graph += "\n"
     ascii_graph += "\n==============================="
     st.code(ascii_graph)
-    # Mermaid Flowchart
+    # Networkx Graph
     st.markdown("#### Process Flowchart")
-    flowchart = "```mermaid\ngraph TD\n"
-    for i, step in enumerate(process, 1):
-        flowchart += f"    S{i}[{step}] -->|Step {i}| "
-        flowchart += f"S{i+1}[{process[i] if i < len(process) else 'End'}]\n"
-    flowchart += "```"
-    st.markdown(flowchart)
+    try:
+        G = nx.DiGraph()
+        for i, step in enumerate(process):
+            G.add_node(f"S{i+1}", label=step)
+            if i < len(process) - 1:
+                G.add_edge(f"S{i+1}", f"S{i+2}")
+        G.add_node("End", label="End")
+        G.add_edge(f"S{len(process)}", "End")
+        pos = nx.spring_layout(G)
+        plt.figure(figsize=(10, 6))
+        nx.draw(G, pos, with_labels=True, labels=nx.get_node_attributes(G, 'label'), node_color='lightblue', node_size=2000, font_size=10, font_weight='bold', arrows=True)
+        nx.draw_networkx_edges(G, pos, arrows=True)
+        plt.title("Decision Process Flowchart")
+        plt.savefig("process_graph.png")
+        plt.close()
+        st.image("process_graph.png", use_column_width=True)
+    except Exception as e:
+        st.error(f"Failed to generate process graph: {str(e)}")
 
 def main():
     st.markdown("<h1 class='main-title'>DecisionTwin for Decision Making</h1>", unsafe_allow_html=True)
@@ -275,7 +357,6 @@ def main():
                 try:
                     with st.spinner("Generating personas..."):
                         st.session_state.personas = generate_personas(st.session_state.extracted)
-                        # Reset replace_index to avoid stale state
                         st.session_state.replace_index = {}
                         for persona in st.session_state.personas:
                             save_persona(persona)
@@ -292,7 +373,7 @@ def main():
             with st.expander("View/Edit Persona Library", expanded=False):
                 for persona in saved_personas:
                     if not persona.get("id"):
-                        continue  # Skip invalid personas
+                        continue
                     with st.form(key=f"edit_db_persona_{persona['id']}", clear_on_submit=True):
                         name = st.text_input("Name", value=persona["name"], key=f"name_{persona['id']}")
                         goals = st.text_area("Goals", value=", ".join(persona["goals"]), key=f"goals_{persona['id']}")
