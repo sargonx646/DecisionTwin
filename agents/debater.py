@@ -33,19 +33,29 @@ def simulate_debate(personas: List[Dict], dilemma: str, process_hint: str, extra
         process_steps.extend([process_steps[-1]] * (rounds - len(process_steps)))
     process_steps = process_steps[:rounds]
 
-    # Dynamically build role_focus from extracted roles
+    # Dynamically build stakeholder_roles and role_focus
     stakeholder_roles = {}
     role_focus = {}
-    for line in process_hint.split("\n"):
-        if ":" in line and any(s["name"] in line for s in extracted.get("stakeholders", [])):
-            name, role = line.split(":", 1)
-            name = name.strip().split(".")[-1].strip()
-            role = role.strip()
-            if "USAID" not in role:
-                stakeholder_roles[name] = role
-                # Assign generic focus if role is new
-                if role not in role_focus:
-                    role_focus[role] = f"Focus on priorities relevant to {role.lower()}."
+    if isinstance(process_hint, str):
+        for line in process_hint.split("\n"):
+            if ":" in line and any(s["name"] in line for s in extracted.get("stakeholders", [])):
+                try:
+                    name, role = line.split(":", 1)
+                    name = name.strip().split(".")[-1].strip()
+                    role = role.strip()
+                    if "USAID" not in role:
+                        stakeholder_roles[name] = role
+                        role_focus[role] = f"Focus on priorities relevant to {role.lower()}."
+                except Exception as e:
+                    print(f"Error parsing process_hint line: {str(e)}")
+    else:
+        # Handle case where process_hint is not a string (e.g., dictionary)
+        print(f"Warning: process_hint is not a string, got type {type(process_hint)}. Using default roles.")
+        for s in extracted.get("stakeholders", []):
+            name = s.get("name", "Unknown")
+            role = s.get("role", "Team Member")
+            stakeholder_roles[name] = role
+            role_focus[role] = f"Focus on priorities relevant to {role.lower()}."
 
     # Filter personas to exclude USAID-related stakeholders
     filtered_personas = [persona for persona in personas if "USAID" not in stakeholder_roles.get(persona["name"], "")]
@@ -60,7 +70,7 @@ def simulate_debate(personas: List[Dict], dilemma: str, process_hint: str, extra
     }
 
     # Initialize cumulative context
-    cumulative_context = f"Dilemma: {dilemma}\nProcess: {process_hint}\n"
+    cumulative_context = f"Dilemma: {dilemma}\nProcess: {process_hint if isinstance(process_hint, str) else json.dumps(process_hint)}\n"
     if scenarios:
         cumulative_context += f"Scenarios: {scenarios}\n"
 
