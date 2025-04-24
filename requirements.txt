@@ -19,5 +19,6 @@ langchain==0.2.16
 langchain-community==0.2.15 
 langchain-core==0.2.38 
 faiss-cpu==1.8.0
+PyPDF2==3.0.1
 
 
