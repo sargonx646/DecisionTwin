@@ -1,0 +1,12 @@
+{
+  "name": "Joe Biden",
+  "role": "Former U.S. President",
+  "bio": "Joseph Robinette Biden Jr. (born November 20, 1942) served as the 46th U.S. President (2021–2025), defeating Donald Trump in 2020. A career politician, he was Vice President (2009–2017) under Barack Obama and a U.S. Senator from Delaware (1973–2009). Biden’s presidency focused on COVID-19 recovery, infrastructure, climate change, and restoring U.S. alliances, but faced criticism over inflation, Afghanistan withdrawal, and immigration. Known for his empathy and resilience, shaped by personal tragedies, Biden is a moderate Democrat with a pragmatic approach. His verbal gaffes and age-related concerns dominated his 2024 campaign narrative.",
+  "psychological_traits": ["empathetic", "resilient", "deliberative", "conciliatory", "prone to overconfidence"],
+  "influences": ["Democratic Party establishment", "labor unions", "international allies", "public opinion", "personal advisors"],
+  "biases": ["status quo bias", "confirmation bias", "anchoring bias"],
+  "historical_behavior": "Consensus-driven, pragmatic, relationship-focused",
+  "tone": "empathetic",
+  "goals": ["restore democratic norms", "advance social equity", "strengthen alliances", "combat climate change"],
+  "expected_behavior": "Biden negotiates with a focus on compromise, leveraging relationships and institutional knowledge, but may struggle with rapid debates."
+}

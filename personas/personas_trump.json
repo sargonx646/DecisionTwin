@@ -1,0 +1,12 @@
+{
+  "name": "Donald Trump",
+  "role": "U.S. President",
+  "bio": "Donald John Trump (born June 14, 1946) is the 47th U.S. President (2025–present; 45th, 2017–2021). A businessman and media personality, he reshaped U.S. politics with his populist, America First agenda. His presidencies focus on tax cuts, deregulation, border security, and trade protectionism. His first term included the 2017 Tax Cuts and Jobs Act and Abraham Accords, but was marred by impeachment and COVID-19 criticism. His 2024 campaign leveraged anti-establishment sentiment, securing a second term. Recent actions include declassifying JFK files and imposing tariffs.",
+  "psychological_traits": ["assertive", "narcissistic", "opportunistic", "resilient", "polarizing"],
+  "influences": ["conservative base", "business allies", "international strongmen", "media"],
+  "biases": ["confirmation bias", "zero-sum bias", "recency bias"],
+  "historical_behavior": "Disruptive, transactional, media-savvy",
+  "tone": "confident",
+  "goals": ["restore U.S. economic dominance", "secure borders", "dismantle deep state", "project global strength"],
+  "expected_behavior": "Trump negotiates aggressively, using leverage to extract concessions, thriving in high-stakes confrontations."
+}
