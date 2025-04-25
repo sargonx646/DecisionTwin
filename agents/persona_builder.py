@@ -1,94 +1,69 @@
 from typing import Dict, List
-import random
+import openai
 import os
-from openai import OpenAI
 from tenacity import retry, stop_after_attempt, wait_fixed
 
-def generate_personas(extracted: Dict) -> List[dict]:
+@retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
+def generate_personas(extracted: Dict) -> List[Dict]:
     """
-    Build detailed personas for stakeholders.
+    Generate personas for stakeholders based on extracted decision structure.
 
     Args:
-        extracted (Dict): Extracted decision structure.
+        extracted (Dict): Extracted decision structure with stakeholders, dilemma, and process.
 
     Returns:
-        List[dict]: List of personas with name, goals, biases, tone, bio, and expected behavior.
+        List[Dict]: List of generated personas.
     """
-    client = OpenAI(
-        base_url="https://api.x.ai/v1",
-        api_key=os.getenv("XAI_API_KEY")
-    )
+    try:
+        # Ensure OpenAI API key is set
+        if not os.getenv("XAI_API_KEY"):
+            raise ValueError("XAI_API_KEY environment variable is not set")
 
-    stakeholders = extracted.get("stakeholders", [])
-    if not stakeholders:
-        return []
+        openai.api_key = os.getenv("XAI_API_KEY")
 
-    names = [stakeholder["name"] for stakeholder in stakeholders]
-    goals_options = [
-        "maximize impact",
-        "ensure stability",
-        "promote growth",
-        "maintain oversight",
-        "enhance influence"
-    ]
-    biases_options = [
-        "confirmation bias",
-        "optimism bias",
-        "groupthink",
-        "status quo bias"
-    ]
-    tones = ["diplomatic", "assertive", "analytical", "cautious"]
+        # Extract stakeholder names from dictionaries
+        stakeholders = extracted.get("stakeholders", [])
+        stakeholder_names = []
+        for stakeholder in stakeholders:
+            if isinstance(stakeholder, dict) and "name" in stakeholder:
+                stakeholder_names.append(stakeholder["name"])
+            elif isinstance(stakeholder, str):
+                stakeholder_names.append(stakeholder)
+            else:
+                raise ValueError(f"Invalid stakeholder format: {stakeholder}")
 
-    stakeholder_dict = {s["name"]: s for s in stakeholders}
-    personas = []
+        if not stakeholder_names:
+            raise ValueError("No valid stakeholders found in extracted data")
 
-    @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
-    def make_api_call(prompt):
-        return client.chat.completions.create(
-            model="grok-3-beta",
+        # Prepare prompt for persona generation
+        dilemma = extracted.get("dilemma", "Unknown dilemma")
+        process = extracted.get("process", [])
+        prompt = (
+            f"Generate detailed personas for the following stakeholders involved in a decision: {', '.join(stakeholder_names)}. "
+            f"Decision context: {dilemma}. "
+            f"Process: {', '.join(process)}. "
+            "Each persona should include: name, role, bio, psychological_traits (list), influences (list), biases (list), "
+            "historical_behavior, tone, goals (list), and expected_behavior. "
+            "Return the result as a JSON list of dictionaries."
+        )
+
+        # Call OpenAI API
+        response = openai.ChatCompletion.create(
+            model="gpt-4",  # Adjust model as needed
             messages=[
-                {"role": "system", "content": "You are generating stakeholder profiles."},
+                {"role": "system", "content": "You are an expert in creating detailed stakeholder personas."},
                 {"role": "user", "content": prompt}
             ],
-            temperature=0.7,
-            max_tokens=600
+            max_tokens=1500,
+            temperature=0.7
         )
 
-    for name in names:
-        extracted_data = stakeholder_dict.get(name, {})
-        goals = random.sample(goals_options, k=2)
-        biases = random.sample(biases_options, k=2)
-        tone = extracted_data.get("tone", random.choice(tones))
-        initial_bio = extracted_data.get("bio", f"{name} has experience in their field.")
+        # Parse response
+        personas = json.loads(response.choices[0].message.content)
+        if not isinstance(personas, list):
+            raise ValueError("Expected a list of personas from API response")
 
-        context = (
-            f"Decision Type: {extracted.get('decision_type', 'Unknown')}\n"
-            f"Issues: {', '.join(extracted.get('issues', ['Unknown']))}\n"
-            f"Stakeholder: Name: {name}, Role: {extracted_data.get('role', 'Unknown')}"
-        )
+        return personas
 
-        prompt = (
-            f"Generate a bio (100–150 words) and negotiation behavior (50–100 words) for {name}.\n"
-            f"Context:\n{context}\nInitial Bio: {initial_bio}\n"
-            "Return as plain text with bio and behavior separated by '\n\n'."
-        )
-
-        try:
-            completion = make_api_call(prompt)
-            response = completion.choices[0].message.content
-            bio, behavior = response.split("\n\n", 1) if "\n\n" in response else (response, f"{name} negotiates with a {tone} tone.")
-        except Exception as e:
-            print(f"Error generating profile for {name}: {str(e)}")
-            bio = initial_bio
-            behavior = f"{name} negotiates with a {tone} tone."
-
-        personas.append({
-            "name": name,
-            "goals": goals,
-            "biases": biases,
-            "tone": tone,
-            "bio": bio.strip(),
-            "expected_behavior": behavior.strip()
-        })
-
-    return personas
+    except Exception as e:
+        raise Exception(f"Failed to generate personas: {str(e)}")
