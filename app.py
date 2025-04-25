@@ -424,8 +424,8 @@ def main():
             [
                 "Grok 3 Beta Simulation",
                 "AgentIQ Simulation (Work in Progress)",
-                "Monte Carlo Simulation",
-                "Game Theory Simulation"
+                "Monte Carlo Simulation (Work in Progress)",
+                "Game Theory Simulation (Work in Progress)"
             ],
             key="simulation_type"
         )
