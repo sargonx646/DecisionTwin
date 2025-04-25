@@ -1,4 +1,3 @@
-
 import streamlit as st
 import json
 import os
@@ -9,7 +8,7 @@ from typing import List, Dict
 import matplotlib.pyplot as plt
 import plotly.express as px
 import pandas as pd
-import networkx as nx  # Ensure networkx is imported
+import networkx as nx
 from agents.extractor import extract_decision_structure
 from agents.persona_builder import generate_personas
 from agents.debater import simulate_debate
@@ -276,10 +275,8 @@ def display_process_visualization(process: List[str]):
     st.code(ascii_graph)
     st.markdown("#### Process Flowchart")
     try:
-        # Ensure networkx is available
         if not hasattr(nx, 'DiGraph'):
             raise ImportError("networkx module is not properly loaded")
-        
         G = nx.DiGraph()
         for i, step in enumerate(process):
             G.add_node(f"S{i+1}", label=step)
@@ -354,6 +351,7 @@ def main():
         st.markdown(f'<div class="step-box">{st.session_state.dilemma}</div>', unsafe_allow_html=True)
         st.markdown("### Personas")
         if not st.session_state.personas:
+            st.write("Debug: Extracted data:", st.session_state.extracted)  # Enhanced debug
             if st.button("Generate Personas", key="generate_personas"):
                 try:
                     with st.spinner("Generating personas..."):
@@ -366,6 +364,7 @@ def main():
                     st.rerun()
                 except Exception as e:
                     st.error(f"Failed to generate personas: {str(e)}")
+                    st.write("Raw exception details:", repr(e))  # Temporary raw error capture
         else:
             display_persona_cards(st.session_state.personas)
         st.markdown("### Persona Library")
@@ -424,8 +423,8 @@ def main():
             [
                 "Grok 3 Beta Simulation",
                 "AgentIQ Simulation (Work in Progress)",
-                "Monte Carlo Simulation (Work in Progress)",
-                "Game Theory Simulation (Work in Progress)"
+                "Monte Carlo Simulation",
+                "Game Theory Simulation"
             ],
             key="simulation_type"
         )
