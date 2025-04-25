@@ -5,14 +5,15 @@ import random
 import PyPDF2
 from io import BytesIO
 from typing import List, Dict
-import networkx as nx
 import matplotlib.pyplot as plt
+import plotly.express as px
+import pandas as pd
 from agents.extractor import extract_decision_structure
 from agents.persona_builder import generate_personas
 from agents.debater import simulate_debate
 from agents.summarizer import generate_summary_and_suggestion
 from agents.transcript_analyzer import transcript_analyzer
-from utils.visualizer import generate_visuals
+from utils.visualizer import generate_visualizations
 from utils.db import save_persona, get_all_personas, init_db, update_persona, delete_persona
 
 # Initialize database
@@ -283,11 +284,8 @@ def display_process_visualization(process: List[str]):
         pos = nx.spring_layout(G)
         plt.figure(figsize=(10, 6))
         nx.draw(G, pos, with_labels=True, labels=nx.get_node_attributes(G, 'label'), node_color='lightblue', node_size=2000, font_size=10, font_weight='bold', arrows=True)
-        nx.draw_networkx_edges(G, pos, arrows=True)
-        plt.title("Decision Process Flowchart")
-        plt.savefig("process_graph.png")
+        st.pyplot(plt)
         plt.close()
-        st.image("process_graph.png", use_column_width=True)
     except Exception as e:
         st.error(f"Failed to generate process graph: {str(e)}")
 
@@ -474,8 +472,8 @@ def main():
                     st.session_state.summary, st.session_state.suggestion = generate_summary_and_suggestion(st.session_state.transcript)
                     analysis_input = json.dumps({"transcript": st.session_state.transcript, "dilemma": st.session_state.dilemma})
                     st.session_state.analysis = json.loads(transcript_analyzer(analysis_input))
-                    keywords = [word for entry in st.session_state.transcript for word in entry['message'].split() if len(word) > 5]
-                    generate_visuals(keywords, st.session_state.transcript, st.session_state.personas)
+                    st.session_state.keywords = [word for entry in st.session_state.transcript for word in entry['message'].split() if len(word) > 5]
+                    generate_visualizations(st.session_state.keywords, st.session_state.transcript, st.session_state.personas)
                 st.session_state.step = 5
                 st.success("Analysis complete!")
                 st.rerun()
@@ -494,75 +492,93 @@ def main():
         st.markdown(f'<div class="suggestion-box">{st.session_state.suggestion}</div>', unsafe_allow_html=True)
         st.markdown("### Negotiation Analysis")
         analysis = st.session_state.analysis
-        if analysis.get("themes"):
-            st.markdown("**Key Themes**")
-            st.write(", ".join(analysis["themes"]))
+        if analysis.get("topics"):
+            st.markdown("**Key Topics**")
+            for topic in analysis["topics"]:
+                st.write(f"- {topic['label']}: {', '.join(topic['keywords'])} (Weight: {topic['weight']:.2f})")
+        if analysis.get("sentiment_analysis"):
+            st.markdown("**Sentiment Analysis**")
+            for sentiment in analysis["sentiment_analysis"]:
+                st.write(f"- {sentiment['agent']} (Round {sentiment['round']}): {sentiment['tone']} (Score: {sentiment['score']:.2f})")
+        if analysis.get("key_arguments"):
+            st.markdown("**Key Arguments**")
+            for arg in analysis["key_arguments"]:
+                st.write(f"- {arg['agent']}: {arg['type']} - {arg['content']}")
         if analysis.get("conflicts"):
             st.markdown("**Negotiation Conflicts**")
             for conflict in analysis["conflicts"]:
-                st.write(f"- {conflict} - Potential issue: Misaligned priorities or power imbalance.")
-        if analysis.get("negotiation_issues"):
-            st.markdown("**Negotiation Issues**")
-            for issue in analysis["negotiation_issues"]:
-                st.write(f"- {issue}")
+                st.write(f"- {conflict['issue']} (Involving: {', '.join(conflict['stakeholders'])})")
         if analysis.get("insights"):
             st.markdown("**Insights**")
             st.write(analysis["insights"])
-        if analysis.get("main_points"):
-            st.markdown("**Main Points**")
-            for point in analysis["main_points"]:
-                st.write(f"- {point}")
         if analysis.get("improvement_areas"):
             st.markdown("**Areas for Improvement**")
             for area in analysis["improvement_areas"]:
                 st.write(f"- {area}")
-        if analysis.get("problematic_stakeholders"):
-            st.markdown("**Problematic Stakeholders**")
-            for stakeholder in analysis["problematic_stakeholders"]:
-                st.write(f"- {stakeholder['name']}: {stakeholder['issue']}")
-        if analysis.get("tone_analysis"):
-            st.markdown("**Tone Analysis**")
-            for tone in analysis["tone_analysis"]:
-                st.write(f"- {tone['agent']}: {tone['tone']} (Score: {tone['score']:.2f})")
-        if analysis.get("contentions"):
-            st.markdown("**Areas of Contention**")
-            for contention in analysis["contentions"]:
-                st.write(f"- {contention['issue']}: Involves {', '.join(contention['stakeholders'])}")
         if analysis.get("process_suggestions"):
             st.markdown("**Suggestions for Smoother Negotiation**")
             for suggestion in analysis["process_suggestions"]:
                 st.write(f"- {suggestion}")
+
         st.markdown("### Visual Insights")
         st.subheader("Word Cloud")
         try:
-            with open("visuals/word_cloud.png", "rb") as f:
-                st.image(f.read(), use_column_width=True)
-        except FileNotFoundError:
-            st.warning("Word cloud unavailable.")
+            fig = plt.figure(figsize=(10, 5))
+            wordcloud = WordCloud(width=800, height=400, background_color='white').generate(" ".join(st.session_state.keywords))
+            plt.imshow(wordcloud, interpolation='bilinear')
+            plt.axis('off')
+            st.pyplot(fig)
+            plt.close()
+        except Exception as e:
+            st.warning(f"Failed to generate word cloud: {str(e)}")
+
         st.subheader("Stakeholder Interaction Network")
         try:
-            with open("visuals/network_graph.png", "rb") as f:
-                st.image(f.read(), use_column_width=True)
-        except FileNotFoundError:
-            st.warning("Network graph unavailable.")
-        st.subheader("Negotiation Conflict Heatmap")
+            import plotly.graph_objects as go
+            G = nx.DiGraph()
+            agents = list(set(entry['agent'] for entry in st.session_state.transcript))
+            for agent in agents:
+                G.add_node(agent)
+            for i, entry in enumerate(st.session_state.transcript[:-1]):
+                G.add_edge(entry['agent'], st.session_state.transcript[i+1]['agent'])
+            pos = nx.spring_layout(G)
+            edge_x, edge_y = [], []
+            for edge in G.edges():
+                x0, y0 = pos[edge[0]]
+                x1, y1 = pos[edge[1]]
+                edge_x.extend([x0, x1, None])
+                edge_y.extend([y0, y1, None])
+            node_x, node_y = [], []
+            for node in G.nodes():
+                x, y = pos[node]
+                node_x.append(x)
+                node_y.append(y)
+            edge_trace = go.Scatter(x=edge_x, y=edge_y, line=dict(width=0.5, color='#888'), hoverinfo='none', mode='lines')
+            node_trace = go.Scatter(x=node_x, y=node_y, mode='markers+text', text=list(G.nodes()), textposition='top center', marker=dict(size=10, color='lightblue'))
+            fig = go.Figure(data=[edge_trace, node_trace], layout=go.Layout(showlegend=False, hovermode='closest', margin=dict(b=0,l=0,r=0,t=0), xaxis=dict(showgrid=False, zeroline=False), yaxis=dict(showgrid=False, zeroline=False)))
+            fig.update_layout(title="Stakeholder Interaction Network")
+            st.plotly_chart(fig, use_container_width=True)
+        except Exception as e:
+            st.warning(f"Failed to generate interaction network: {str(e)}")
+
+        st.subheader("Topic Distribution")
         try:
-            with open("visuals/conflict_heatmap.png", "rb") as f:
-                st.image(f.read(), use_column_width=True)
-        except FileNotFoundError:
-            st.warning("Conflict heatmap unavailable.")
-        st.subheader("Tone Analysis Heatmap")
+            if analysis.get("topics"):
+                df = pd.DataFrame([(t['label'], t['weight']) for t in analysis["topics"]], columns=["Topic", "Weight"])
+                fig = px.bar(df, x="Topic", y="Weight", title="Topic Distribution in Debate")
+                st.plotly_chart(fig, use_container_width=True)
+        except Exception as e:
+            st.warning(f"Failed to generate topic distribution: {str(e)}")
+
+        st.subheader("Sentiment Trend")
         try:
-            with open("visuals/tone_heatmap.png", "rb") as f:
-                st.image(f.read(), use_column_width=True)
-        except FileNotFoundError:
-            st.warning("Tone heatmap unavailable.")
-        st.subheader("Contention Network")
-        try:
-            with open("visuals/contention_network.png", "rb") as f:
-                st.image(f.read(), use_column_width=True)
-        except FileNotFoundError:
-            st.warning("Contention network unavailable.")
+            if analysis.get("sentiment_analysis"):
+                df = pd.DataFrame([(s['agent'], s['round'], s['score']) for s in analysis["sentiment_analysis"]], columns=["Agent", "Round", "Sentiment"])
+                fig = px.line(df, x="Round", y="Sentiment", color="Agent", title="Sentiment Trend Over Rounds")
+                st.plotly_chart(fig, use_container_width=True)
+        except Exception as e:
+            st.warning(f"Failed to generate sentiment trend: {str(e)}")
+
         st.markdown("### Export Results")
         col1, col2, col3, col4 = st.columns(4)
         with col1:
@@ -583,28 +599,31 @@ def main():
             )
         with col3:
             try:
-                with open("visuals/word_cloud.png", "rb") as f:
-                    st.download_button(
-                        label="🖼️ Word Cloud (PNG)",
-                        data=f,
-                        file_name="word_cloud.png",
-                        mime="image/png",
-                        key="download_word_cloud"
-                    )
-            except FileNotFoundError:
-                st.warning("Word cloud unavailable.")
+                buf = BytesIO()
+                fig = plt.figure(figsize=(10, 5))
+                wordcloud = WordCloud(width=800, height=400, background_color='white').generate(" ".join(st.session_state.keywords))
+                plt.imshow(wordcloud, interpolation='bilinear')
+                plt.axis('off')
+                plt.savefig(buf, format="png")
+                plt.close()
+                buf.seek(0)
+                st.download_button(
+                    label="🖼️ Word Cloud (PNG)",
+                    data=buf,
+                    file_name="word_cloud.png",
+                    mime="image/png",
+                    key="download_word_cloud"
+                )
+            except Exception as e:
+                st.warning(f"Failed to generate word cloud for download: {str(e)}")
         with col4:
-            try:
-                with open("visuals/conflict_heatmap.png", "rb") as f:
-                    st.download_button(
-                        label="📊 Conflict Heatmap (PNG)",
-                        data=f,
-                        file_name="conflict_heatmap.png",
-                        mime="image/png",
-                        key="download_heatmap"
-                    )
-            except FileNotFoundError:
-                st.warning("Conflict heatmap unavailable.")
+            st.download_button(
+                label="📊 Analysis (JSON)",
+                data=json.dumps(st.session_state.analysis, indent=2),
+                file_name="analysis.json",
+                mime="application/json",
+                key="download_analysis"
+            )
         st.markdown('''
         <div class="cta-box">
             <h3>Loved the Experience?</h3>
