@@ -1,3 +1,4 @@
+
 import streamlit as st
 import json
 import os
@@ -8,6 +9,7 @@ from typing import List, Dict
 import matplotlib.pyplot as plt
 import plotly.express as px
 import pandas as pd
+import networkx as nx  # Ensure networkx is imported
 from agents.extractor import extract_decision_structure
 from agents.persona_builder import generate_personas
 from agents.debater import simulate_debate
@@ -274,6 +276,10 @@ def display_process_visualization(process: List[str]):
     st.code(ascii_graph)
     st.markdown("#### Process Flowchart")
     try:
+        # Ensure networkx is available
+        if not hasattr(nx, 'DiGraph'):
+            raise ImportError("networkx module is not properly loaded")
+        
         G = nx.DiGraph()
         for i, step in enumerate(process):
             G.add_node(f"S{i+1}", label=step)
@@ -286,6 +292,8 @@ def display_process_visualization(process: List[str]):
         nx.draw(G, pos, with_labels=True, labels=nx.get_node_attributes(G, 'label'), node_color='lightblue', node_size=2000, font_size=10, font_weight='bold', arrows=True)
         st.pyplot(plt)
         plt.close()
+    except ImportError as e:
+        st.error(f"Failed to generate process graph: {str(e)}. Please ensure networkx is installed.")
     except Exception as e:
         st.error(f"Failed to generate process graph: {str(e)}")
 
